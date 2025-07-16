@@ -25,9 +25,19 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy MySQL') {
             steps {
-                sh 'kubectl apply -f k8s/dvna-deployment.yaml'
+                sh 'kubectl apply -f k8s/mysql-deployment.yaml'
+            }
+        }
+
+        stage('Deploy DVNA') {
+            steps {
+                // Xoá pod DVNA cũ để nhận lại env mới
+                sh '''
+                    kubectl delete pod -l app=dvna --ignore-not-found
+                    kubectl apply -f k8s/dvna-deployment.yaml
+                '''
             }
         }
     }
