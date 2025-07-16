@@ -3,11 +3,10 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'btthanhk4/dvna:latest'
-        DOCKERFILE = 'Dockerfile.glibc229'
     }
 
     stages {
-        stage('Checkout Source Code') {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
@@ -15,17 +14,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME -f $DOCKERFILE .'
-            }
-        }
-
-        stage('Trivy Image Scan') {
-            steps {
-                sh '''
-                    echo "=================== TRIVY IMAGE SCAN ==================="
-                    trivy image --severity HIGH,CRITICAL --format table --exit-code 0 $IMAGE_NAME || true
-                    echo "=================== END TRIVY REPORT ==================="
-                '''
+                sh 'docker build -t $IMAGE_NAME -f Dockerfile.glibc229 .'
             }
         }
 
@@ -37,6 +26,17 @@ pipeline {
                         docker push $IMAGE_NAME
                     '''
                 }
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            steps {
+                sh '''
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest \
+                        image --severity HIGH,CRITICAL --format table --exit-code 0 $IMAGE_NAME | tee trivy-report.txt
+                '''
+                archiveArtifacts artifacts: 'trivy-report.txt', onlyIfSuccessful: true
             }
         }
 
@@ -53,15 +53,6 @@ pipeline {
                     kubectl apply -f k8s/dvna-deployment.yaml
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo "Pipeline completed successfully."
-        }
-        failure {
-            echo "Pipeline failed. Check logs for errors."
         }
     }
 }
