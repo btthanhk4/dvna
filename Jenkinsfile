@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = 'btthanhk4/dvna:latest'
+        DOCKERFILE = 'Dockerfile.glibc229'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -8,9 +13,21 @@ pipeline {
             }
         }
 
+        stage('Trivy FS Scan (Source Code)') {
+            steps {
+                sh 'trivy fs . --exit-code 0 --severity HIGH,CRITICAL || true'
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t btthanhk4/dvna:latest -f Dockerfile.glibc229 .'
+                sh "docker build -t ${IMAGE_NAME} -f ${DOCKERFILE} ."
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            steps {
+                sh "trivy image ${IMAGE_NAME} --exit-code 0 --severity HIGH,CRITICAL || true"
             }
         }
 
@@ -33,7 +50,6 @@ pipeline {
 
         stage('Deploy DVNA') {
             steps {
-                // Xoá pod DVNA cũ để nhận lại env mới
                 sh '''
                     kubectl delete pod -l app=dvna --ignore-not-found
                     kubectl apply -f k8s/dvna-deployment.yaml
