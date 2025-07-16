@@ -1,31 +1,26 @@
 pipeline {
     agent any
 
-    environment {
-        IMAGE_NAME = "btthanhk4/dvna"
-        TAG = "latest"
-    }
-
     stages {
-        stage('Clone') {
+        stage('Checkout') {
             steps {
-                git 'https://github.com/appsecco/dvna'
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh "docker build -t $IMAGE_NAME:$TAG ."
-                }
+                sh 'docker build -t btthanhk4/dvna:latest -f Dockerfile.glibc229 .'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin"
-                    sh "docker push $IMAGE_NAME:$TAG"
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push btthanhk4/dvna:latest
+                    '''
                 }
             }
         }
