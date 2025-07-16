@@ -1,13 +1,12 @@
-# Damn Vulnerable NodeJS Application
-
-FROM node:carbon
-LABEL MAINTAINER "Subash SN"
+# Dockerfile.glibc229
+FROM node:14-bullseye
 
 WORKDIR /app
 
 COPY . .
 
-RUN chmod +x /app/entrypoint.sh \
-	&& npm install
+RUN npm install
 
-CMD ["bash", "/app/entrypoint.sh"]
+EXPOSE 9090
+
+CMD ["npm", "start"]
