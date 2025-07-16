@@ -7,7 +7,7 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Source Code') {
             steps {
                 checkout scm
             }
@@ -15,15 +15,16 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME} -f ${DOCKERFILE} ."
+                sh 'docker build -t $IMAGE_NAME -f $DOCKERFILE .'
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                echo 'Scanning Docker image with Trivy...'
                 sh '''
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ${IMAGE_NAME} --severity HIGH,CRITICAL || true
+                    echo "=================== TRIVY IMAGE SCAN ==================="
+                    trivy image --severity HIGH,CRITICAL --format table --exit-code 0 $IMAGE_NAME || true
+                    echo "=================== END TRIVY REPORT ==================="
                 '''
             }
         }
@@ -33,7 +34,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push btthanhk4/dvna:latest
+                        docker push $IMAGE_NAME
                     '''
                 }
             }
@@ -52,6 +53,15 @@ pipeline {
                     kubectl apply -f k8s/dvna-deployment.yaml
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully."
+        }
+        failure {
+            echo "Pipeline failed. Check logs for errors."
         }
     }
 }
