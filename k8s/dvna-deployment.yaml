@@ -17,6 +17,7 @@ spec:
       containers:
         - name: dvna
           image: btthanhk4/dvna:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 9090
           env:
