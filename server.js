@@ -1,3 +1,4 @@
+console.log("App version mới được CI/CD deploy tự động");
 var express = require('express')
 var bodyParser = require('body-parser')
 var passport = require('passport')
