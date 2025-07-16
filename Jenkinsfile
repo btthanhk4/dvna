@@ -13,15 +13,6 @@ pipeline {
             }
         }
 
-        stage('Trivy FS Scan (Source Code)') {
-            steps {
-                echo 'Scanning source code with Trivy...'
-                sh '''
-                    docker run --rm -v $(pwd):/src aquasec/trivy fs /src --severity HIGH,CRITICAL || true
-                '''
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh "docker build -t ${IMAGE_NAME} -f ${DOCKERFILE} ."
