@@ -1,5 +1,37 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            label 'kaniko-agent'
+            defaultContainer 'kaniko'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins: kaniko-agent
+spec:
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      command:
+        - /busybox/cat
+      tty: true
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker/
+    - name: kubectl
+      image: bitnami/kubectl:latest
+      command:
+        - cat
+      tty: true
+  restartPolicy: Never
+  volumes:
+    - name: docker-config
+      secret:
+        secretName: docker-config
+"""
+        }
+    }
 
     environment {
         IMAGE_NAME = 'btthanhk4/dvna:latest'
@@ -12,18 +44,14 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build & Push Docker Image (Kaniko)') {
             steps {
-                sh 'docker build -t $IMAGE_NAME -f Dockerfile.glibc229 .'
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                container('kaniko') {
                     sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push $IMAGE_NAME
+                        /kaniko/executor \
+                          --context `pwd` \
+                          --dockerfile Dockerfile.glibc229 \
+                          --destination=$IMAGE_NAME
                     '''
                 }
             }
@@ -32,7 +60,8 @@ pipeline {
         stage('Trivy Image Scan') {
             steps {
                 sh '''
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
                         aquasec/trivy:latest \
                         image --severity HIGH,CRITICAL --format table --exit-code 0 $IMAGE_NAME | tee trivy-report.txt
                 '''
@@ -42,16 +71,20 @@ pipeline {
 
         stage('Deploy MySQL') {
             steps {
-                sh 'kubectl apply -f k8s/mysql-deployment.yaml'
+                container('kubectl') {
+                    sh 'kubectl apply -f k8s/mysql-deployment.yaml'
+                }
             }
         }
 
         stage('Deploy DVNA') {
             steps {
-                sh '''
-                    kubectl delete pod -l app=dvna --ignore-not-found
-                    kubectl apply -f k8s/dvna-deployment.yaml
-                '''
+                container('kubectl') {
+                    sh '''
+                        kubectl delete pod -l app=dvna --ignore-not-found
+                        kubectl apply -f k8s/dvna-deployment.yaml
+                    '''
+                }
             }
         }
     }
