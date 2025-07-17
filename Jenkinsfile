@@ -1,30 +1,22 @@
 pipeline {
     agent {
         kubernetes {
-            label 'kaniko-agent'
-            defaultContainer 'kaniko'
             yaml """
 apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    jenkins: kaniko-agent
+    jenkins: kaniko
 spec:
   containers:
     - name: kaniko
       image: gcr.io/kaniko-project/executor:latest
       command:
-        - /busybox/cat
+        - cat
       tty: true
       volumeMounts:
         - name: docker-config
-          mountPath: /kaniko/.docker/
-    - name: kubectl
-      image: bitnami/kubectl:latest
-      command:
-        - cat
-      tty: true
-  restartPolicy: Never
+          mountPath: /kaniko/.docker
   volumes:
     - name: docker-config
       secret:
@@ -38,32 +30,37 @@ spec:
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Source') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build & Push Docker Image (Kaniko)') {
+        stage('Build & Push with Kaniko') {
             steps {
                 container('kaniko') {
                     sh '''
-                        /kaniko/executor \
-                          --context `pwd` \
-                          --dockerfile Dockerfile.glibc229 \
-                          --destination=$IMAGE_NAME
+                    /kaniko/executor \
+                      --dockerfile=Dockerfile.glibc229 \
+                      --context=. \
+                      --destination=docker.io/${IMAGE_NAME} \
+                      --skip-tls-verify \
+                      --verbosity=info
                     '''
                 }
             }
         }
 
         stage('Trivy Image Scan') {
+            agent {
+                docker {
+                    image 'aquasec/trivy:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 sh '''
-                    docker run --rm \
-                        -v /var/run/docker.sock:/var/run/docker.sock \
-                        aquasec/trivy:latest \
-                        image --severity HIGH,CRITICAL --format table --exit-code 0 $IMAGE_NAME | tee trivy-report.txt
+                    trivy image --severity HIGH,CRITICAL --format table --exit-code 0 ${IMAGE_NAME} | tee trivy-report.txt
                 '''
                 archiveArtifacts artifacts: 'trivy-report.txt', onlyIfSuccessful: true
             }
@@ -71,20 +68,16 @@ spec:
 
         stage('Deploy MySQL') {
             steps {
-                container('kubectl') {
-                    sh 'kubectl apply -f k8s/mysql-deployment.yaml'
-                }
+                sh 'kubectl apply -f k8s/mysql-deployment.yaml'
             }
         }
 
-        stage('Deploy DVNA') {
+        stage('Deploy DVNA App') {
             steps {
-                container('kubectl') {
-                    sh '''
-                        kubectl delete pod -l app=dvna --ignore-not-found
-                        kubectl apply -f k8s/dvna-deployment.yaml
-                    '''
-                }
+                sh '''
+                    kubectl delete pod -l app=dvna --ignore-not-found
+                    kubectl apply -f k8s/dvna-deployment.yaml
+                '''
             }
         }
     }
