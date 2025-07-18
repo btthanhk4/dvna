@@ -43,17 +43,15 @@ pipeline {
         }
 
         stage('Upload Artifact to MinIO') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'minio-creds', usernameVariable: 'MINIO_USER', passwordVariable: 'MINIO_PASS')]) {
-                    sh '''
-                        curl https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
-                        chmod +x mc
-                        ./mc alias set $MINIO_ALIAS http://console.minio.localhost:32080 $MINIO_USER $MINIO_PASS
-                        ./mc cp trivy-report.txt $MINIO_ALIAS/$MINIO_BUCKET/
-                    '''
-                }
-            }
-        }
+    steps {
+        sh '''
+            curl -s https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+            chmod +x mc
+            ./mc alias set minio http://localhost:30737 admin @0U41aXo89
+            ./mc cp trivy-report.txt minio/cicd-artifacts/
+        '''
+    }
+}
 
         stage('Deploy MySQL') {
             steps {
