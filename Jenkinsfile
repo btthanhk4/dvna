@@ -44,15 +44,18 @@ pipeline {
 
         stage('Upload Artifact to MinIO') {
     steps {
-        sh '''
-            curl -s https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
-            chmod +x mc
-            ./mc alias set minio http://192.168.65.3:30737 admin "@0U41aXo89"
-            ./mc mb minio/cicd-artifacts || true
-            ./mc cp trivy-report.txt minio/cicd-artifacts/
-        '''
+        withCredentials([usernamePassword(credentialsId: 'minio-creds', usernameVariable: 'MINIO_USER', passwordVariable: 'MINIO_PASS')]) {
+            sh '''
+                curl -s https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+                chmod +x mc
+                ./mc alias set minio http://192.168.65.3:30737 "$MINIO_USER" "$MINIO_PASS"
+                ./mc mb minio/cicd-artifacts || true
+                ./mc cp trivy-report.txt minio/cicd-artifacts/
+            '''
+        }
     }
 }
+
 
 
 
