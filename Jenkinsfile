@@ -47,11 +47,12 @@ pipeline {
         sh '''
             curl -s https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
             chmod +x mc
-            ./mc alias set minio http://localhost:30737 admin @0U41aXo89
+            ./mc alias set minio http://192.168.65.3:30737 admin @0U41aXo89
             ./mc cp trivy-report.txt minio/cicd-artifacts/
         '''
     }
 }
+
 
         stage('Deploy MySQL') {
             steps {
