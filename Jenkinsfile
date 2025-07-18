@@ -3,6 +3,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'btthanhk4/dvna:latest'
+        MINIO_ALIAS = 'localminio'
+        MINIO_BUCKET = 'cicd-artifacts'
     }
 
     stages {
@@ -37,6 +39,19 @@ pipeline {
                         image --severity HIGH,CRITICAL --format table --exit-code 0 $IMAGE_NAME | tee trivy-report.txt
                 '''
                 archiveArtifacts artifacts: 'trivy-report.txt', onlyIfSuccessful: true
+            }
+        }
+
+        stage('Upload Artifact to MinIO') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'minio-creds', usernameVariable: 'MINIO_USER', passwordVariable: 'MINIO_PASS')]) {
+                    sh '''
+                        curl https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+                        chmod +x mc
+                        ./mc alias set $MINIO_ALIAS http://console.minio.localhost:32080 $MINIO_USER $MINIO_PASS
+                        ./mc cp trivy-report.txt $MINIO_ALIAS/$MINIO_BUCKET/
+                    '''
+                }
             }
         }
 
