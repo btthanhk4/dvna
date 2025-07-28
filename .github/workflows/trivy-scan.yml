@@ -15,7 +15,11 @@ jobs:
 
       - name: Install Trivy and scan image
         run: |
-          echo "Scanning image..."
           docker pull appsecco/dvna
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          trivy image --severity CRITICAL --exit-code 1 --no-progress appsecco/dvna
+          
+          echo "Bắt đầu quét image bằng Trivy..."
+          trivy image --severity CRITICAL --exit-code 1 --format table --no-progress appsecco/dvna || {
+            echo "Phát hiện CVE nghiêm trọng. Pipeline sẽ dừng.";
+            exit 1;
+          }
