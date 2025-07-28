@@ -1,0 +1,21 @@
+name: Trivy Image Scan
+
+on:
+  workflow_dispatch:  # Cho phép chạy thủ công
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run Trivy to scan image
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: appsecco/dvna:latest
+          severity: HIGH,CRITICAL
+          format: table
+          ignore-unfixed: true
