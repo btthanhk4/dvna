@@ -2,13 +2,10 @@ name: Scan Docker Image with Trivy
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    branches: [ "master" ]
 
 jobs:
   scan:
-    name: Scan Docker Image with Trivy
     runs-on: ubuntu-latest
 
     steps:
@@ -18,34 +15,34 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to DockerHub
+      - name: Login to DockerHub (inline)
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: btthanhk4
+          password: Thanhdeptrai2912
 
       - name: Build Docker image
         run: |
-          docker build -t your-image-name .
+          docker build -t dvna-test-image .
 
       - name: Install Trivy
         run: |
-          echo "🛠️ Cài đặt Trivy..."
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.4_Linux-64bit.deb
-          sudo dpkg -i trivy_0.50.4_Linux-64bit.deb
+          sudo apt-get install wget -y
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
 
-      - name: Scan Docker image with Trivy
+      - name: Scan Docker image with Trivy and show CVEs
         run: |
-          echo "🔍 Bắt đầu quét image bằng Trivy..."
-          trivy image --exit-code 1 --severity CRITICAL --format table --no-progress your-image-name > trivy_report.txt
+          echo "Scanning image..."
+          trivy image --severity CRITICAL --no-progress dvna-test-image > trivy-output.txt
 
-          if [ $? -ne 0 ]; then
-            echo "❌ Trivy phát hiện lỗ hổng CRITICAL. Pipeline sẽ dừng lại!"
-            echo "🔎 Báo cáo chi tiết:"
-            cat trivy_report.txt
+          echo "========== Trivy Scan Result =========="
+          cat trivy-output.txt
+
+          echo "========== Checking for CRITICAL issues =========="
+          if grep -q "CRITICAL:" trivy-output.txt; then
+            echo "❌ Found CRITICAL vulnerabilities. Failing pipeline..."
             exit 1
           else
-            echo "✅ Không phát hiện lỗ hổng CRITICAL!"
+            echo "✅ No CRITICAL vulnerabilities found."
           fi
