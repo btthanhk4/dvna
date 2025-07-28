@@ -27,19 +27,24 @@ jobs:
 
       - name: Install Trivy
         run: |
-          sudo apt-get install wget -y
-          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb
-          sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
+          sudo apt-get update
+          sudo apt-get install -y gnupg lsb-release curl
+          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | \
+            gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
 
       - name: Scan Docker image with Trivy and show CVEs
         run: |
-          echo "Scanning image..."
+          echo "🔍 Scanning image..."
           trivy image --severity CRITICAL --no-progress dvna-test-image > trivy-output.txt
 
-          echo "========== Trivy Scan Result =========="
+          echo "========== 🔎 Trivy Scan Result =========="
           cat trivy-output.txt
 
-          echo "========== Checking for CRITICAL issues =========="
+          echo "========== 🚨 Checking for CRITICAL issues =========="
           if grep -q "CRITICAL:" trivy-output.txt; then
             echo "❌ Found CRITICAL vulnerabilities. Failing pipeline..."
             exit 1
