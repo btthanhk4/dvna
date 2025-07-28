@@ -25,11 +25,16 @@ jobs:
         run: |
           docker build -t dvna-test-image .
 
-      - name: 🛠️ Install Trivy
+      - name: 🛠️ Install Trivy via apt (không bị lỗi 404)
         run: |
-          sudo apt-get install wget -y
-          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
-          sudo dpkg -i trivy_0.51.1_Linux-64bit.deb
+          sudo apt-get update
+          sudo apt-get install -y gnupg lsb-release curl
+          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | \
+            gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
 
       - name: 🔍 Scan Docker image with Trivy and show CVEs
         run: |
