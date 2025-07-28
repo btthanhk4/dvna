@@ -1,21 +1,21 @@
-name: Trivy Image Scan
+name: Trivy Scan
 
 on:
-  workflow_dispatch:  # Cho phép chạy thủ công
+  push:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
-  trivy-scan:
+  trivy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Pull Docker image
+        run: docker pull appsecco/dvna:latest
 
-      - name: Run Trivy to scan image
+      - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: image
           image-ref: appsecco/dvna:latest
-          severity: HIGH,CRITICAL
           format: table
-          ignore-unfixed: true
+          severity: HIGH,CRITICAL
